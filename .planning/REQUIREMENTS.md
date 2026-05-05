@@ -92,25 +92,25 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| WORLD-01 | Phase 1 | Pending |
-| CTZN-01 | Phase 2 | Pending |
-| TASK-01 | Phase 3 | Pending |
-| TASK-02 | Phase 3 | Pending |
-| TASK-03 | Phase 3 | Pending |
-| TASK-04 | Phase 3 | Pending |
-| TASK-05 | Phase 3 | Pending |
-| TASK-06 | Phase 3 | Pending |
-| BUILD-01 | Phase 2 | Pending |
-| BUILD-02 | Phase 2 | Pending |
-| BUILD-03 | Phase 2 | Pending |
-| RSRC-01 | Phase 4 | Pending |
-| RSRC-02 | Phase 4 | Pending |
-| RSRC-03 | Phase 4 | Pending |
-| RSRC-04 | Phase 4 | Pending |
-| RSRC-05 | Phase 4 | Pending |
-| UI-01 | Phase 5 | Pending |
-| UI-02 | Phase 5 | Pending |
-| UI-03 | Phase 4 | Pending |
+| WORLD-01 | Phase 2 | Pending |
+| CTZN-01 | Phase 4 | Pending |
+| TASK-01 | Phase 5 | Pending |
+| TASK-02 | Phase 5 | Pending |
+| TASK-03 | Phase 5 | Pending |
+| TASK-04 | Phase 5 | Pending |
+| TASK-05 | Phase 6 | Pending |
+| TASK-06 | Phase 6 | Pending |
+| BUILD-01 | Phase 4 | Pending |
+| BUILD-02 | Phase 4 | Pending |
+| BUILD-03 | Phase 4 | Pending |
+| RSRC-01 | Phase 7 | Pending |
+| RSRC-02 | Phase 7 | Pending |
+| RSRC-03 | Phase 7 | Pending |
+| RSRC-04 | Phase 7 | Pending |
+| RSRC-05 | Phase 7 | Pending |
+| UI-01 | Phase 9 | Pending |
+| UI-02 | Phase 9 | Pending |
+| UI-03 | Phase 8 | Pending |
 
 **Coverage:**
 - v1 requirements: 19 total
@@ -119,4 +119,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-05-05*
-*Last updated: 2026-05-05 after initial definition*
+*Last updated: 2026-05-05 after roadmap creation*
