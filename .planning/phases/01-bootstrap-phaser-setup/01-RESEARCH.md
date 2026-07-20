@@ -407,17 +407,22 @@ Husky v9 setup: `npx husky init` creates `.husky/pre-commit` with `npx lint-stag
 | A2 | ESLint 9.x is a safer choice than 10.x for a brand-new Phase 1 despite both being peer-compatible with typescript-eslint 8.64 | Alternatives Considered | Low-Medium — if wrong, no functional harm; worst case is missing out on ESLint 10-only features, easily upgraded later |
 | A3 | The official `phaserjs/template-vite-ts` repo's `package.json` (fetched via WebFetch) accurately reflects current recommended dependency versions (phaser ^4.0.0, vite ^6.3.1, typescript ~5.7.2) despite its description text still saying "Phaser 3" | Code Examples / vite.config.ts pattern | Medium — the description/dependency mismatch suggests the template's metadata may lag its actual code; version numbers used here were cross-checked against the npm registry directly rather than trusted from the template alone |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should `vite.config.ts` split into dev/prod config files (as the official Phaser template does) or stay as a single file?**
+1. **Should `vite.config.ts` split into dev/prod config files (as the official Phaser template does) or stay as a single file?** — RESOLVED: single file.
    - What we know: The official template uses `vite/config.dev.mjs` + `vite/config.prod.mjs` with a shared base, likely for CI logging/analytics hooks specific to Phaser Studio's tooling.
    - What's unclear: Whether this project needs that split given no CI logging requirement was mentioned in CONTEXT.md.
-   - Recommendation: Use a single `vite.config.ts` for Phase 1 (simpler, sufficient for the stated success criteria); revisit splitting only if build-vs-dev config diverges meaningfully in later phases.
+   - Resolution: Use a single `vite.config.ts` for Phase 1 (simpler, sufficient for the stated success criteria) — this is what 01-01-PLAN.md Task 2 implements. Revisit splitting only if build-vs-dev config diverges meaningfully in later phases.
 
-2. **Exact patch version to pin for `@types/node`.**
+2. **Exact patch version to pin for `@types/node`.** — RESOLVED: pinned to local Node major.
    - What we know: Latest is `26.1.1`, tracking Node's own version cadence loosely.
    - What's unclear: Which Node major version this project's contributors run locally (not specified in CONTEXT.md/CLAUDE.md).
-   - Recommendation: Pin `@types/node` to match whatever Node major is installed locally at scaffold time (verify with `node --version` during execution) — not a blocking decision for Phase 1 since it only affects `vite.config.ts` authoring, not runtime.
+   - Resolution: Pinned `@types/node@^24` in 01-01-PLAN.md Task 1, matching the locally verified Node major (`node --version` reports v24.1.0 in this environment) — not a blocking decision for Phase 1 since it only affects `vite.config.ts` authoring, not runtime.
+
+3. **Should headless/pixel-level canvas-render verification (Playwright) be added in Phase 1?** — RESOLVED: deferred, not required.
+   - What we know: A true pixel-level proof of SC-3 ("Game scene initializes and renders a blank canvas") requires browser automation; Phase 1 does not otherwise need a browser automation dependency.
+   - What's unclear: N/A — this is a scope decision, not an unknown.
+   - Resolution: Deferred out of Phase 1 scope. `01-VALIDATION.md` designates this as a manual-only verification (human-verify checkpoint in 01-02-PLAN.md Task 3), satisfied instead by `vite build` producing `dist/index.html` + `dist/assets/*.js` as an automated proxy. Revisit adding Playwright when a future phase needs visual regression coverage.
 
 ## Environment Availability
 
