@@ -41,7 +41,10 @@
 **Plans:** 2 plans
 
 Plans:
+**Wave 1**
 - [ ] 01-01-PLAN.md — Build tooling scaffold: package.json, tsconfig.json, vite.config.ts, eslint.config.js, prettier, husky/lint-staged
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 01-02-PLAN.md — Phaser scene graph: game.config.ts, main.ts, Boot/Preload/Game scenes, directory structure, dev-server checkpoint
 
 ---
