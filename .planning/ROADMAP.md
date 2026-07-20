@@ -38,7 +38,11 @@
 3. Game scene initializes and renders a blank canvas
 4. Project structure follows Phaser conventions (scenes, assets, config)
 
-**Plans:** TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Build tooling scaffold: package.json, tsconfig.json, vite.config.ts, eslint.config.js, prettier, husky/lint-staged
+- [ ] 01-02-PLAN.md — Phaser scene graph: game.config.ts, main.ts, Boot/Preload/Game scenes, directory structure, dev-server checkpoint
 
 ---
 
@@ -221,7 +225,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Bootstrap & Phaser Setup | 0/3 | Not started | - |
+| 1. Bootstrap & Phaser Setup | 0/2 | Not started | - |
 | 2. Tile World Rendering | 0/4 | Not started | - |
 | 3. Game State Architecture | 0/4 | Not started | - |
 | 4. Entity System | 0/4 | Not started | - |
