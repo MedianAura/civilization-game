@@ -1,0 +1,6 @@
+# Reference docs inherited from the removed GSD framework — read, not maintained.
+# Reformatting them buries real diffs under whitespace churn.
+.planning/
+
+dist/
+pnpm-lock.yaml

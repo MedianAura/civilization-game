@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.vite/
+*.local
+*.log
+.DS_Store
+
+# never here — this repo is pnpm-only
+package-lock.json
+yarn.lock
+
+# playwright-mcp scratch output
+.playwright-mcp/
