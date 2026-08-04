@@ -1,0 +1,13 @@
+# Normalize everything to LF in the repository; Git checks out whatever the
+# platform wants. Without this, Windows checkouts commit CRLF and every diff
+# on another machine is a whole-file rewrite.
+* text=auto eol=lf
+
+# Binary assets must never be touched.
+*.png binary
+*.jpg binary
+*.ogg binary
+*.mp3 binary
+*.wav binary
+
+pnpm-lock.yaml -diff
