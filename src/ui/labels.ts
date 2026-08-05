@@ -1,5 +1,8 @@
+import type { CitizenActivity } from "../world/Citizen";
 import type { TerrainKind, TileFeature } from "../world/Grid";
+import type { JobKind } from "../world/Job";
 import type { SkillName } from "../world/Skills";
+import type { ResourceKind } from "../world/World";
 import type { ZoneKind } from "../world/Zone";
 
 /**
@@ -38,4 +41,17 @@ export const FEATURE_LABELS: Record<NonNullable<TileFeature>, string> = {
 
 export const ZONE_LABELS: Record<ZoneKind, string> = {
   woodcutting: "Woodcutting",
+};
+
+export const JOB_LABELS: Record<JobKind, string> = {
+  lumberjack: "Lumberjack",
+};
+
+export const RESOURCE_LABELS: Record<ResourceKind, string> = {
+  wood: "Wood",
+};
+
+export const ACTIVITY_LABELS: Record<CitizenActivity, string> = {
+  idle: "Idle",
+  working: "Working",
 };

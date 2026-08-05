@@ -1,14 +1,22 @@
 import { EventBus } from "../core/EventBus";
 import { Citizen } from "./Citizen";
 import { GameClock } from "./GameClock";
-import { Grid, type TileCoord } from "./Grid";
+import { Grid, LOGS_PER_TREE, type TileCoord } from "./Grid";
+import { JOB_SKILL, workSeconds, type JobKind } from "./Job";
 import { makeRandom } from "./noise";
 import { generateRegion } from "./terrain";
 import { Zone, type ZoneKind, type ZoneRect } from "./Zone";
 
+export type ResourceKind = "wood";
+
 export interface WorldEvents extends Record<string, unknown> {
   tick: { tick: number };
   "citizen:spawned": { id: string };
+  "citizen:jobChanged": { id: string; job: JobKind | null };
+  "citizen:startedTask": { id: string; target: TileCoord };
+  "citizen:noWork": { id: string; reason: "no-zone" | "no-trees" };
+  "tree:felled": { tile: TileCoord; by: string; logs: number };
+  "resources:changed": { resource: ResourceKind; total: number };
   "zone:added": { id: string };
   "zone:removed": { id: string };
 }
@@ -33,9 +41,12 @@ export class World {
   readonly clock = new GameClock();
   readonly citizens: Citizen[] = [];
   readonly zones: Zone[] = [];
+  readonly resources: Record<ResourceKind, number> = { wood: 0 };
   readonly seed: number;
 
   private readonly byTile = new Map<string, Citizen>();
+  /** Trees already spoken for, so two lumberjacks do not chop the same one. */
+  private readonly claimed = new Set<string>();
 
   constructor(options: WorldOptions = {}) {
     const { width = 128, height = 96, citizenCount = 6, seed = Math.floor(Math.random() * 0xffffffff) } = options;
@@ -43,8 +54,6 @@ export class World {
 
     this.grid = new Grid(width, height, generateRegion({ seed, width, height }));
 
-    // Spawn deterministically from the same seed so a region is reproducible
-    // start to finish, colonists included.
     const random = makeRandom(seed ^ 0xc2b2ae35);
     const spawn = this.findSettlementSite(random);
 
@@ -57,26 +66,14 @@ export class World {
     }
   }
 
+  // -- lookups -------------------------------------------------------------
+
   citizenAt(tile: TileCoord): Citizen | undefined {
     return this.byTile.get(key(tile));
   }
 
   citizenById(id: string): Citizen | undefined {
     return this.citizens.find((citizen) => citizen.id === id);
-  }
-
-  addZone(kind: ZoneKind, rect: ZoneRect): Zone {
-    const zone = new Zone(kind, this.clampToGrid(rect));
-    this.zones.push(zone);
-    this.events.emit("zone:added", { id: zone.id });
-    return zone;
-  }
-
-  removeZone(id: string): void {
-    const index = this.zones.findIndex((zone) => zone.id === id);
-    if (index === -1) return;
-    this.zones.splice(index, 1);
-    this.events.emit("zone:removed", { id });
   }
 
   zoneById(id: string): Zone | undefined {
@@ -96,7 +93,6 @@ export class World {
     return undefined;
   }
 
-  /** Count of tiles in a zone that the job can actually act on. */
   usableTiles(zone: Zone): number {
     let count = 0;
     zone.forEachTile((tile) => {
@@ -105,16 +101,121 @@ export class World {
     return count;
   }
 
-  /**
-   * The clock still runs even though nobody moves — it is the one piece of the
-   * simulation that is hard to retrofit, and letting it drift out of use would
-   * hide a bug until the day something depends on it.
-   */
+  workersOn(zone: Zone): Citizen[] {
+    return this.citizens.filter((c) => c.task && zone.contains(c.task.target));
+  }
+
+  // -- player actions ------------------------------------------------------
+
+  setJob(id: string, job: JobKind | null): void {
+    const citizen = this.citizenById(id);
+    if (!citizen || citizen.job === job) return;
+    citizen.job = job;
+    this.release(citizen);
+    this.events.emit("citizen:jobChanged", { id, job });
+  }
+
+  addZone(kind: ZoneKind, rect: ZoneRect): Zone {
+    const zone = new Zone(kind, this.clampToGrid(rect));
+    this.zones.push(zone);
+    this.events.emit("zone:added", { id: zone.id });
+    return zone;
+  }
+
+  removeZone(id: string): void {
+    const index = this.zones.findIndex((zone) => zone.id === id);
+    if (index === -1) return;
+    const [zone] = this.zones.splice(index, 1);
+    if (zone) {
+      // Anyone chopping a tree in a zone that no longer exists should stop.
+      for (const citizen of this.citizens) {
+        if (citizen.task && zone.contains(citizen.task.target) && !this.zoneAt(citizen.task.target)) {
+          this.release(citizen);
+        }
+      }
+    }
+    this.events.emit("zone:removed", { id });
+  }
+
+  // -- simulation ----------------------------------------------------------
+
   update(deltaMs: number): void {
     this.clock.advance(deltaMs, (tick) => {
+      const dt = this.clock.tickSeconds;
+      for (const citizen of this.citizens) {
+        const result = citizen.advance(dt);
+        if (result === "finished") this.completeTask(citizen);
+        if (result === "idle" && citizen.job) this.findWork(citizen);
+      }
       this.events.emit("tick", { tick });
     });
   }
+
+  private completeTask(citizen: Citizen): void {
+    const task = citizen.task;
+    if (!task) return;
+
+    const tile = this.grid.at(task.target.x, task.target.y);
+    // The tree may have been felled by someone else, or the zone removed, while
+    // this citizen was swinging. Losing the yield is correct; the tree is gone.
+    if (tile?.feature === "tree") {
+      this.grid.clearFeature(task.target.x, task.target.y);
+      this.resources.wood += LOGS_PER_TREE;
+      this.events.emit("tree:felled", { tile: task.target, by: citizen.id, logs: LOGS_PER_TREE });
+      this.events.emit("resources:changed", { resource: "wood", total: this.resources.wood });
+    }
+
+    this.release(citizen);
+    this.findWork(citizen);
+  }
+
+  /**
+   * Claim the nearest unclaimed tree in a matching zone.
+   *
+   * Nearest does not affect how fast the work goes — nobody walks — but it makes
+   * a zone empty outward from whoever is working it instead of dissolving at
+   * random, which is the difference between reading as work and reading as decay.
+   */
+  private findWork(citizen: Citizen): void {
+    if (citizen.job !== "lumberjack") return;
+
+    let best: TileCoord | null = null;
+    let bestDistance = Infinity;
+
+    for (const zone of this.zones) {
+      if (zone.kind !== "woodcutting") continue;
+      zone.forEachTile((tile) => {
+        if (this.grid.at(tile.x, tile.y)?.feature !== "tree") return;
+        if (this.claimed.has(key(tile))) return;
+        const distance = Math.abs(tile.x - citizen.tile.x) + Math.abs(tile.y - citizen.tile.y);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = tile;
+        }
+      });
+    }
+
+    if (best === null) {
+      citizen.activity = "idle";
+      this.events.emit("citizen:noWork", {
+        id: citizen.id,
+        reason: this.zones.some((z) => z.kind === "woodcutting") ? "no-trees" : "no-zone",
+      });
+      return;
+    }
+
+    const seconds = workSeconds("lumberjack", citizen.skills[JOB_SKILL.lumberjack]);
+    this.claimed.add(key(best));
+    citizen.assign({ kind: "chop", target: best, totalSeconds: seconds, secondsLeft: seconds });
+    this.events.emit("citizen:startedTask", { id: citizen.id, target: best });
+  }
+
+  private release(citizen: Citizen): void {
+    if (citizen.task) this.claimed.delete(key(citizen.task.target));
+    citizen.abandonTask();
+  }
+
+  // -- generation ----------------------------------------------------------
 
   /**
    * Somewhere worth landing: open ground with open ground around it. Dropping
@@ -137,7 +238,6 @@ export class World {
         bestScore = score;
         best = candidate;
       }
-      // 49 buildable tiles in a 7x7 is as good as it gets; stop looking.
       if (bestScore >= 45) break;
     }
     return best ?? this.grid.randomBuildableTile(random);

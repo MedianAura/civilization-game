@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { MainScene } from "./scenes/MainScene";
 import { InspectorPanel } from "./ui/InspectorPanel";
+import { ResourceBar } from "./ui/ResourceBar";
 import { Selection } from "./ui/Selection";
 import { ToolState } from "./ui/Tool";
 import { Toolbar } from "./ui/Toolbar";
@@ -26,14 +27,20 @@ const inspector = new InspectorPanel(uiLayer, selection, {
   zone: (id) => world.zoneById(id),
   zoneAt: (x, y) => world.zoneAt({ x, y }),
   usableTiles: (zone) => world.usableTiles(zone),
+  workersOn: (zone) => world.workersOn(zone),
   removeZone: (id) => world.removeZone(id),
+  setJob: (id, job) => world.setJob(id, job),
 });
 new Toolbar(uiLayer, tools);
+new ResourceBar(uiLayer, world.events, world.resources);
 
-// A tile panel showing "Zone: None" goes stale the moment a zone is drawn over
-// it. The panel re-reads rather than caching, so a nudge is enough.
+// The panel re-reads rather than caching, so any world change that could be on
+// screen is a nudge. Chopping progress needs a steady one; the rest are edges.
 world.events.on("zone:added", () => inspector.refresh());
 world.events.on("zone:removed", () => inspector.refresh());
+world.events.on("tree:felled", () => inspector.refresh());
+world.events.on("citizen:startedTask", () => inspector.refresh());
+setInterval(() => inspector.refreshIfLive(), 250);
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,

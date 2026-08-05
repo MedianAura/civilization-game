@@ -150,3 +150,38 @@ the void.
 a threshold on two channels. A river follows a slope and needs a flow model, and
 a bad one is obvious — it runs uphill, it ends in nothing — while an approximate
 forest just looks like a forest.
+
+## 2026-08-04 — Workers are stationary, and that is the design
+
+**Decided:** an assigned worker works their zone from where they stand. Nobody
+walks. This is not a placeholder for movement — it is how a colony sim abstracts
+labour at the building level (Anno, Banished), and it keeps the question honest:
+"is assigning someone and watching a resource climb satisfying?" needs no walk
+cycle to answer.
+
+**A\* was written and deleted, twice in one day.** First when hunger was retired,
+then again here, ten minutes after being written. Twice is not coincidence — it
+is the signal that movement is not what this game is asking for yet. It will be
+written a third time if and when a citizen has to *be* somewhere.
+
+**What is drawn instead:** a progress ring on the tree being felled and a thin
+thread back to whoever is felling it. The abstraction is shown rather than
+hidden — a long thread across the map reads as "that one is assigned here", not
+as a bug.
+
+**Skills stop being decoration.** `workSeconds` shortens the work rather than
+multiplying a rate, because what the player watches is someone standing at a
+tree: "that one is faster" has to be visible as time spent. Level 0 takes the
+base 6 s, level 10 takes 40% of it. The job picker shows the relevant level right
+on the button, so assigning the worst possible person is a decision rather than
+an accident.
+
+**Claims, not queues.** A tree being worked is claimed so two lumberjacks cannot
+chop the same one. If it is already gone when the work finishes — felled by
+someone else, or its zone removed mid-swing — the yield is lost. That is correct:
+the tree is not there.
+
+**Open question:** the resource bar counts stock only, never what is still
+standing in the ground. The player was explicit that counting trees for them is
+unwanted. Whether the stock belongs in a HUD at all, or should become physical
+(log piles, a storehouse), is not settled.

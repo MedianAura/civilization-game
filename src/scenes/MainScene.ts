@@ -19,6 +19,8 @@ const TERRAIN_COLORS: Record<TerrainKind, number> = {
 
 const TREE_COLOR = 0x24522a;
 const CITIZEN_FILL = 0x9ab6c9;
+const CITIZEN_WORKING = 0xd8b45a;
+const WORK_COLOR = 0xe0c060;
 const HIGHLIGHT_CITIZEN = 0x8fbc8f;
 const HIGHLIGHT_TILE = 0xc9c07a;
 const ZONE_FILL = 0xc9a227;
@@ -32,9 +34,12 @@ export class MainScene extends Phaser.Scene {
 
   private highlight!: Phaser.GameObjects.Rectangle;
   private zoneLayer!: Phaser.GameObjects.Graphics;
+  private featureLayer!: Phaser.GameObjects.Graphics;
+  private workLayer!: Phaser.GameObjects.Graphics;
   private dragPreview!: Phaser.GameObjects.Graphics;
   private dragStart: TileCoord | null = null;
   private readonly labels: Phaser.GameObjects.Text[] = [];
+  private readonly bodies = new Map<string, Phaser.GameObjects.Rectangle>();
   private labelsVisible = true;
 
   constructor() {
@@ -54,6 +59,7 @@ export class MainScene extends Phaser.Scene {
     // Zones sit above terrain but below citizens: they are ground markings, and
     // a villager standing in one must stay visible.
     this.zoneLayer = this.add.graphics();
+    this.workLayer = this.add.graphics();
     for (const citizen of this.world.citizens) this.drawCitizen(citizen);
     this.dragPreview = this.add.graphics();
 
@@ -73,6 +79,7 @@ export class MainScene extends Phaser.Scene {
     this.selection.events.on("changed", ({ target }) => this.moveHighlight(target));
     this.world.events.on("zone:added", () => this.drawZones());
     this.world.events.on("zone:removed", () => this.drawZones());
+    this.world.events.on("tree:felled", () => this.drawFeatures());
     this.tools.events.on("changed", () => this.cancelDrag());
   }
 
@@ -213,24 +220,57 @@ export class MainScene extends Phaser.Scene {
     // one batch, features in another. A Tiled TilemapLayer replaces both later
     // without the simulation noticing.
     const ground = this.add.graphics();
-    const features = this.add.graphics();
-
     this.world.grid.forEach((tile) => {
       ground.fillStyle(TERRAIN_COLORS[tile.terrain], 1);
       ground.fillRect(tile.x * TILE, tile.y * TILE, TILE, TILE);
+    });
 
+    this.featureLayer = this.add.graphics();
+    this.drawFeatures();
+  }
+
+  /**
+   * Redrawn whole rather than erasing one tile. At 12k tiles this costs under a
+   * millisecond and only happens when a tree falls — a dirty-rect scheme would be
+   * more code defending a budget that is not under pressure.
+   */
+  private drawFeatures(): void {
+    this.featureLayer.clear();
+    this.featureLayer.fillStyle(TREE_COLOR, 1);
+    this.world.grid.forEach((tile) => {
       if (tile.feature === "tree") {
-        features.fillStyle(TREE_COLOR, 1);
-        features.fillRect(tile.x * TILE + 4, tile.y * TILE + 4, TILE - 8, TILE - 8);
+        this.featureLayer.fillRect(tile.x * TILE + 4, tile.y * TILE + 4, TILE - 8, TILE - 8);
       }
     });
+  }
+
+  /** A ring that fills as the current chop completes — the work made visible. */
+  private drawWorkers(): void {
+    this.workLayer.clear();
+    for (const citizen of this.world.citizens) {
+      if (!citizen.task) continue;
+
+      const cx = (citizen.task.target.x + 0.5) * TILE;
+      const cy = (citizen.task.target.y + 0.5) * TILE;
+
+      this.workLayer.lineStyle(2, WORK_COLOR, 0.35);
+      this.workLayer.strokeCircle(cx, cy, TILE * 0.42);
+      this.workLayer.lineStyle(3, WORK_COLOR, 1);
+      this.workLayer.beginPath();
+      this.workLayer.arc(cx, cy, TILE * 0.42, -Math.PI / 2, -Math.PI / 2 + citizen.progress * Math.PI * 2);
+      this.workLayer.strokePath();
+
+      // A thread back to whoever is doing it, since nobody walks over.
+      this.workLayer.lineStyle(1, WORK_COLOR, 0.25);
+      this.workLayer.lineBetween(cx, cy, (citizen.tile.x + 0.5) * TILE, (citizen.tile.y + 0.5) * TILE);
+    }
   }
 
   private drawCitizen(citizen: Citizen): void {
     const x = (citizen.tile.x + 0.5) * TILE;
     const y = (citizen.tile.y + 0.5) * TILE;
 
-    this.add.rectangle(x, y, TILE - 12, TILE - 12, CITIZEN_FILL);
+    this.bodies.set(citizen.id, this.add.rectangle(x, y, TILE - 12, TILE - 12, CITIZEN_FILL));
     this.labels.push(
       this.add
         .text(x, y + TILE / 2 - 3, citizen.name, {
@@ -254,5 +294,10 @@ export class MainScene extends Phaser.Scene {
     this.camera.update(delta);
     this.syncLabelVisibility();
     this.world.update(delta);
+
+    for (const citizen of this.world.citizens) {
+      this.bodies.get(citizen.id)?.setFillStyle(citizen.task ? CITIZEN_WORKING : CITIZEN_FILL);
+    }
+    this.drawWorkers();
   }
 }

@@ -1,8 +1,17 @@
 import type { Citizen } from "../world/Citizen";
 import { LOGS_PER_TREE, type Tile } from "../world/Grid";
+import { JOB_SKILL, JOBS, type JobKind } from "../world/Job";
 import { bestSkill, MAX_SKILL_LEVEL, SKILLS, worstSkill } from "../world/Skills";
 import type { Zone } from "../world/Zone";
-import { FEATURE_LABELS, SKILL_LABELS, TERRAIN_LABELS, TERRAIN_NOTES, ZONE_LABELS } from "./labels";
+import {
+  ACTIVITY_LABELS,
+  FEATURE_LABELS,
+  JOB_LABELS,
+  SKILL_LABELS,
+  TERRAIN_LABELS,
+  TERRAIN_NOTES,
+  ZONE_LABELS,
+} from "./labels";
 import type { Selection, SelectionTarget } from "./Selection";
 
 export interface InspectorSources {
@@ -13,7 +22,9 @@ export interface InspectorSources {
   zone: (id: string) => Zone | undefined;
   zoneAt: (x: number, y: number) => Zone | undefined;
   usableTiles: (zone: Zone) => number;
+  workersOn: (zone: Zone) => Citizen[];
   removeZone: (id: string) => void;
+  setJob: (id: string, job: JobKind | null) => void;
 }
 
 /**
@@ -46,6 +57,15 @@ export class InspectorPanel {
       if (remove?.dataset.removeZone) {
         this.sources.removeZone(remove.dataset.removeZone);
         this.selection.clear();
+        return;
+      }
+
+      const setJob = el.closest<HTMLElement>("[data-set-job]");
+      const target = this.selection.target;
+      if (setJob && target?.kind === "citizen") {
+        const value = setJob.dataset.setJob;
+        this.sources.setJob(target.id, value ? (value as JobKind) : null);
+        this.refresh();
       }
     });
 
@@ -55,6 +75,17 @@ export class InspectorPanel {
   /** Re-render in place — used when the world changes under a live selection. */
   refresh(): void {
     this.render(this.selection.target);
+  }
+
+  /**
+   * Repaint only when something on screen actually ticks. Rebuilding the whole
+   * panel four times a second regardless would fight the player's cursor for no
+   * reason — a static tile has nothing to say between clicks.
+   */
+  refreshIfLive(): void {
+    const target = this.selection.target;
+    if (target?.kind === "citizen" && this.sources.citizen(target.id)?.task) this.refresh();
+    else if (target?.kind === "zone") this.refresh();
   }
 
   private render(target: SelectionTarget | null): void {
@@ -84,17 +115,58 @@ export class InspectorPanel {
   // -- views ---------------------------------------------------------------
 
   private citizenView(citizen: Citizen): HTMLElement[] {
+    const doing = citizen.task
+      ? `Chopping (${Math.round(citizen.progress * 100)}%)`
+      : ACTIVITY_LABELS[citizen.activity];
+
     return [
       this.header(citizen.name, "Villager"),
       this.summary([
         ["Best at", SKILL_LABELS[bestSkill(citizen.skills)]],
         ["Worst at", SKILL_LABELS[worstSkill(citizen.skills)]],
-        ["Job", "Unassigned"],
+        ["Doing", doing],
         ["Home", "None"],
         ["Tile", `${citizen.tile.x}, ${citizen.tile.y}`],
       ]),
+      this.jobPicker(citizen),
       this.skillList(citizen),
     ];
+  }
+
+  /** The first control in the game that writes to the world rather than reading it. */
+  private jobPicker(citizen: Citizen): HTMLElement {
+    const section = document.createElement("section");
+    section.className = "inspector__jobs";
+
+    const heading = document.createElement("h3");
+    heading.textContent = "Job";
+    section.append(heading);
+
+    const row = document.createElement("div");
+    row.className = "jobs";
+
+    for (const job of [null, ...JOBS] as (JobKind | null)[]) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.setJob = job ?? "";
+      button.textContent = job ? JOB_LABELS[job] : "None";
+      button.classList.toggle("is-active", citizen.job === job);
+      button.setAttribute("aria-pressed", String(citizen.job === job));
+
+      if (job) {
+        // Say what they are good at right where the choice is made, so assigning
+        // the worst possible person is a decision rather than an accident.
+        const level = citizen.skills[JOB_SKILL[job]];
+        const badge = document.createElement("span");
+        badge.className = "jobs__level";
+        badge.textContent = String(level);
+        button.append(badge);
+      }
+      row.append(button);
+    }
+
+    section.append(row);
+    return section;
   }
 
   private tileView(tile: Tile): HTMLElement[] {
@@ -125,20 +197,18 @@ export class InspectorPanel {
 
   private zoneView(zone: Zone): HTMLElement[] {
     const usable = this.sources.usableTiles(zone);
+    const workers = this.sources.workersOn(zone);
+
     const nodes: HTMLElement[] = [
       this.header(ZONE_LABELS[zone.kind], "Zone"),
       this.summary([
         ["Area", `${zone.rect.width} × ${zone.rect.height}`],
         ["Tiles", String(zone.tileCount)],
-        ["Trees inside", String(usable)],
-        ["Assigned", "Nobody"],
+        ["Trees left", String(usable)],
+        ["Working here", workers.length > 0 ? workers.map((w) => w.name).join(", ") : "Nobody"],
         ["Origin", `${zone.rect.x}, ${zone.rect.y}`],
       ]),
-      this.note(
-        usable === 0
-          ? "Nothing to cut here yet. The zone stays; it will apply if trees grow inside it."
-          : `${usable} tile${usable === 1 ? "" : "s"} of timber waiting. Nobody is assigned to work it.`
-      ),
+      this.note(this.zoneNote(usable, workers.length)),
     ];
 
     const remove = document.createElement("button");
@@ -149,6 +219,12 @@ export class InspectorPanel {
     nodes.push(remove);
 
     return nodes;
+  }
+
+  private zoneNote(trees: number, workers: number): string {
+    if (trees === 0) return "Cleared. The zone stays; it will apply again if trees grow back.";
+    if (workers === 0) return `${trees} tree${trees === 1 ? "" : "s"} waiting. Assign someone as a Lumberjack.`;
+    return `${trees} tree${trees === 1 ? "" : "s"} left, ${workers} working.`;
   }
 
   // -- pieces --------------------------------------------------------------

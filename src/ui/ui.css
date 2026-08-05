@@ -214,3 +214,96 @@
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+.resources {
+  pointer-events: auto;
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  gap: 16px;
+  padding: 7px 12px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 45%);
+  font-size: 12px;
+}
+
+.resources__item {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.resources__label {
+  color: var(--ink-dim);
+}
+
+.resources strong {
+  display: inline-block;
+  min-width: 2ch;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  transition: transform 180ms ease-out;
+}
+
+.resources strong.is-bumped {
+  animation: bump 320ms ease-out;
+}
+
+@keyframes bump {
+  0% {
+    transform: translateY(0);
+  }
+  35% {
+    transform: translateY(-3px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.jobs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.jobs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border: 1px solid var(--panel-border);
+  border-radius: 3px;
+  background: #1d2022;
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.jobs button:hover {
+  border-color: #3d4348;
+}
+
+.jobs button.is-active {
+  border-color: var(--accent);
+  background: #24301f;
+  color: var(--accent);
+}
+
+.jobs__level {
+  padding: 0 4px;
+  border-radius: 2px;
+  background: #2c3130;
+  color: var(--ink-dim);
+  font-size: 10px;
+}
+
+.jobs button.is-active .jobs__level {
+  background: #33482c;
+  color: var(--accent);
+}
