@@ -244,3 +244,22 @@ silently.
 **A log does not know it came from a tree.** When stone comes from rock and
 berries from bushes, those tables want to be beside each other rather than
 scattered through the material files.
+
+## Next session — the construct database
+
+**Decided in advance:** zones stop being their own concept and become entries in
+a **construct database**, alongside buildings. The first two entries are the
+**storage zone** and the **woodcutting zone** — which means the woodcutting zone
+that already exists moves *into* the database rather than sitting beside it.
+
+That ordering matters: building the database around storage alone would shape it
+around a zone that holds things, and woodcutting would then be the awkward
+special case. Both from the start, and the shared shape has to fit a zone that
+*designates work* and a zone that *holds items*.
+
+Then: a build HUD offering the construct tools, and citizens hauling ground items
+into the storage zone.
+
+**That last part is what finally requires movement** — picking something up here
+and putting it down there cannot be done sitting. A\* gets written a third time,
+and this time the design asks for it rather than a deduction predicting it.
