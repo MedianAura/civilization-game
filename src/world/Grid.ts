@@ -23,9 +23,6 @@ export interface TileCoord {
 
 const IMPASSABLE_TERRAIN: ReadonlySet<TerrainKind> = new Set<TerrainKind>(["rock", "water"]);
 
-/** How many logs one tree yields. Fixed for now — a stable number makes "is chopping satisfying" readable. */
-export const LOGS_PER_TREE = 5;
-
 export class Grid {
   private readonly tiles: Tile[];
 

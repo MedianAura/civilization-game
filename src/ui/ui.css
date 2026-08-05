@@ -307,3 +307,38 @@
   background: #33482c;
   color: var(--accent);
 }
+
+.item {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.item__swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.item__swatch--log {
+  background: #8b6034;
+}
+.item__swatch--branch {
+  background: #a8853f;
+}
+.item__swatch--leaf {
+  background: #6f9c46;
+}
+
+.item__count {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.item__weight {
+  margin: 6px 0 0;
+  color: var(--ink-dim);
+  font-size: 11px;
+}

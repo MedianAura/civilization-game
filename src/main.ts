@@ -1,7 +1,6 @@
 import Phaser from "phaser";
 import { MainScene } from "./scenes/MainScene";
 import { InspectorPanel } from "./ui/InspectorPanel";
-import { ResourceBar } from "./ui/ResourceBar";
 import { Selection } from "./ui/Selection";
 import { ToolState } from "./ui/Tool";
 import { Toolbar } from "./ui/Toolbar";
@@ -24,6 +23,7 @@ const inspector = new InspectorPanel(uiLayer, selection, {
   tile: (x, y) => world.grid.at(x, y),
   occupant: (x, y) => world.citizenAt({ x, y }),
   passable: (x, y) => world.grid.isWalkable(x, y),
+  itemsAt: (x, y) => world.itemsAt({ x, y }),
   zone: (id) => world.zoneById(id),
   zoneAt: (x, y) => world.zoneAt({ x, y }),
   usableTiles: (zone) => world.usableTiles(zone),
@@ -32,13 +32,12 @@ const inspector = new InspectorPanel(uiLayer, selection, {
   setJob: (id, job) => world.setJob(id, job),
 });
 new Toolbar(uiLayer, tools);
-new ResourceBar(uiLayer, world.events, world.resources);
 
 // The panel re-reads rather than caching, so any world change that could be on
 // screen is a nudge. Chopping progress needs a steady one; the rest are edges.
 world.events.on("zone:added", () => inspector.refresh());
 world.events.on("zone:removed", () => inspector.refresh());
-world.events.on("tree:felled", () => inspector.refresh());
+world.events.on("ground:changed", () => inspector.refresh());
 world.events.on("citizen:startedTask", () => inspector.refresh());
 setInterval(() => inspector.refreshIfLive(), 250);
 

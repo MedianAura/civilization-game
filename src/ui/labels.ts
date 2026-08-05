@@ -1,8 +1,8 @@
 import type { CitizenActivity } from "../world/Citizen";
 import type { TerrainKind, TileFeature } from "../world/Grid";
+import type { ItemId } from "../world/items";
 import type { JobKind } from "../world/Job";
 import type { SkillName } from "../world/Skills";
-import type { ResourceKind } from "../world/World";
 import type { ZoneKind } from "../world/Zone";
 
 /**
@@ -47,9 +47,22 @@ export const JOB_LABELS: Record<JobKind, string> = {
   lumberjack: "Lumberjack",
 };
 
-export const RESOURCE_LABELS: Record<ResourceKind, string> = {
-  wood: "Wood",
+export const ITEM_LABELS: Record<ItemId, string> = {
+  leaf: "Leaves",
+  branch: "Branches",
+  log: "Logs",
 };
+
+/** Singular forms, for when a count of one would read wrong. */
+export const ITEM_LABELS_ONE: Record<ItemId, string> = {
+  leaf: "Leaf",
+  branch: "Branch",
+  log: "Log",
+};
+
+export function itemLabel(item: ItemId, count: number): string {
+  return count === 1 ? ITEM_LABELS_ONE[item] : ITEM_LABELS[item];
+}
 
 export const ACTIVITY_LABELS: Record<CitizenActivity, string> = {
   idle: "Idle",

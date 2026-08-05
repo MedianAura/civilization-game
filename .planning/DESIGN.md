@@ -185,3 +185,34 @@ the tree is not there.
 standing in the ground. The player was explicit that counting trees for them is
 unwanted. Whether the stock belongs in a HUD at all, or should become physical
 (log piles, a storehouse), is not settled.
+
+## 2026-08-04 — Items exist on the ground, not in a counter
+
+**Decided:** felling a tree drops a variable number of leaves, branches and logs
+**on the tile where the tree stood**. There is no global wood total.
+
+**This retires the resource bar, one commit after it was built.** The warning was
+"you're going to waste your time on that", and it was right for a reason that
+only became visible now: if the yield lands on the ground, a global counter is a
+lie — it claims the colony *has* something that is actually lying in a forest two
+hundred tiles away. A bar returns when it can count the contents of a storehouse,
+which is a different and true statement.
+
+**Variable yield is the point, not flavour.** A fixed yield makes every tree the
+same tree; the reason to drop items in a place rather than credit a number is
+that a specific tree becomes a specific pile worth a specific trip. Drops are
+rolled from the region seed, so a save replays identically.
+
+**One database, one `ItemId`.** A drop table, a storage slot and a build cost all
+name the same id rather than each carrying a private idea of what a log is.
+Weight is defined now though nothing reads it yet — hauling will, and retrofitting
+a weight onto items already scattered across a map is worse than declaring it
+unused for one commit.
+
+**Ground piles ignore stack size.** A stack limit is a storage constraint; the
+forest floor has no shelves.
+
+**Next, per the plan:** a build HUD offering zone tools, a construct database, and
+a storage zone as the first building — with citizens hauling ground items into
+it. That last part is what finally requires movement, and it is the third time
+A\* will have been written.

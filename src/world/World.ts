@@ -1,13 +1,12 @@
 import { EventBus } from "../core/EventBus";
 import { Citizen } from "./Citizen";
 import { GameClock } from "./GameClock";
-import { Grid, LOGS_PER_TREE, type TileCoord } from "./Grid";
+import { Grid, type TileCoord } from "./Grid";
+import { mergeStacks, rollDrops, TREE_DROPS, type ItemStack } from "./items";
 import { JOB_SKILL, workSeconds, type JobKind } from "./Job";
 import { makeRandom } from "./noise";
 import { generateRegion } from "./terrain";
 import { Zone, type ZoneKind, type ZoneRect } from "./Zone";
-
-export type ResourceKind = "wood";
 
 export interface WorldEvents extends Record<string, unknown> {
   tick: { tick: number };
@@ -15,8 +14,8 @@ export interface WorldEvents extends Record<string, unknown> {
   "citizen:jobChanged": { id: string; job: JobKind | null };
   "citizen:startedTask": { id: string; target: TileCoord };
   "citizen:noWork": { id: string; reason: "no-zone" | "no-trees" };
-  "tree:felled": { tile: TileCoord; by: string; logs: number };
-  "resources:changed": { resource: ResourceKind; total: number };
+  "tree:felled": { tile: TileCoord; by: string; dropped: ItemStack[] };
+  "ground:changed": { tile: TileCoord };
   "zone:added": { id: string };
   "zone:removed": { id: string };
 }
@@ -41,18 +40,28 @@ export class World {
   readonly clock = new GameClock();
   readonly citizens: Citizen[] = [];
   readonly zones: Zone[] = [];
-  readonly resources: Record<ResourceKind, number> = { wood: 0 };
   readonly seed: number;
+
+  /**
+   * What is lying on the ground, by tile. Felled trees leave their yield where
+   * they stood rather than crediting a global counter — a specific tree becomes a
+   * specific pile in a specific place, which is the whole point of hauling later.
+   */
+  private readonly ground = new Map<string, ItemStack[]>();
 
   private readonly byTile = new Map<string, Citizen>();
   /** Trees already spoken for, so two lumberjacks do not chop the same one. */
   private readonly claimed = new Set<string>();
+  /** Drops are seeded so a region plays out identically on the same seed. */
+  private readonly dropRandom: () => number;
 
   constructor(options: WorldOptions = {}) {
     const { width = 128, height = 96, citizenCount = 6, seed = Math.floor(Math.random() * 0xffffffff) } = options;
     this.seed = seed;
 
     this.grid = new Grid(width, height, generateRegion({ seed, width, height }));
+
+    this.dropRandom = makeRandom(seed ^ 0x27d4eb2f);
 
     const random = makeRandom(seed ^ 0xc2b2ae35);
     const spawn = this.findSettlementSite(random);
@@ -103,6 +112,36 @@ export class World {
 
   workersOn(zone: Zone): Citizen[] {
     return this.citizens.filter((c) => c.task && zone.contains(c.task.target));
+  }
+
+  /** What is lying on a tile. Empty array rather than undefined — callers just iterate. */
+  itemsAt(tile: TileCoord): readonly ItemStack[] {
+    return this.ground.get(key(tile)) ?? EMPTY;
+  }
+
+  hasItemsAt(tile: TileCoord): boolean {
+    return this.ground.has(key(tile));
+  }
+
+  /** Every tile currently holding something. The hauling pass will want this. */
+  groundTiles(): TileCoord[] {
+    return [...this.ground.keys()].map((k) => {
+      const [x, y] = k.split(",");
+      return { x: Number(x), y: Number(y) };
+    });
+  }
+
+  private addToGround(tile: TileCoord, stacks: readonly ItemStack[]): void {
+    if (stacks.length === 0) return;
+    const id = key(tile);
+    const existing = this.ground.get(id);
+    if (existing) mergeStacks(existing, stacks);
+    else
+      this.ground.set(
+        id,
+        stacks.map((s) => ({ ...s }))
+      );
+    this.events.emit("ground:changed", { tile });
   }
 
   // -- player actions ------------------------------------------------------
@@ -160,9 +199,9 @@ export class World {
     // this citizen was swinging. Losing the yield is correct; the tree is gone.
     if (tile?.feature === "tree") {
       this.grid.clearFeature(task.target.x, task.target.y);
-      this.resources.wood += LOGS_PER_TREE;
-      this.events.emit("tree:felled", { tile: task.target, by: citizen.id, logs: LOGS_PER_TREE });
-      this.events.emit("resources:changed", { resource: "wood", total: this.resources.wood });
+      const dropped = rollDrops(TREE_DROPS, this.dropRandom);
+      this.addToGround(task.target, dropped);
+      this.events.emit("tree:felled", { tile: task.target, by: citizen.id, dropped });
     }
 
     this.release(citizen);
@@ -271,6 +310,8 @@ export class World {
     };
   }
 }
+
+const EMPTY: readonly ItemStack[] = [];
 
 function key(tile: TileCoord): string {
   return `${tile.x},${tile.y}`;

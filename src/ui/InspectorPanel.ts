@@ -1,11 +1,13 @@
 import type { Citizen } from "../world/Citizen";
-import { LOGS_PER_TREE, type Tile } from "../world/Grid";
+import type { Tile } from "../world/Grid";
+import { totalCount, totalWeight, type ItemStack } from "../world/items";
 import { JOB_SKILL, JOBS, type JobKind } from "../world/Job";
 import { bestSkill, MAX_SKILL_LEVEL, SKILLS, worstSkill } from "../world/Skills";
 import type { Zone } from "../world/Zone";
 import {
   ACTIVITY_LABELS,
   FEATURE_LABELS,
+  itemLabel,
   JOB_LABELS,
   SKILL_LABELS,
   TERRAIN_LABELS,
@@ -19,6 +21,7 @@ export interface InspectorSources {
   tile: (x: number, y: number) => Tile | undefined;
   occupant: (x: number, y: number) => Citizen | undefined;
   passable: (x: number, y: number) => boolean;
+  itemsAt: (x: number, y: number) => readonly ItemStack[];
   zone: (id: string) => Zone | undefined;
   zoneAt: (x: number, y: number) => Zone | undefined;
   usableTiles: (zone: Zone) => number;
@@ -173,26 +176,71 @@ export class InspectorPanel {
     const occupant = this.sources.occupant(tile.x, tile.y);
     const zone = this.sources.zoneAt(tile.x, tile.y);
 
-    // The heading names what is *there*; the rows name the ground under it. A
-    // tree on grass is two facts, and the old model could only hold one.
-    const heading = tile.feature ? FEATURE_LABELS[tile.feature] : TERRAIN_LABELS[tile.terrain];
+    const items = this.sources.itemsAt(tile.x, tile.y);
 
-    return [
+    // The heading names what is *there*, and a pile counts: a cleared tile with
+    // twelve logs on it is not "grass", it is where a tree used to be.
+    const heading = tile.feature
+      ? FEATURE_LABELS[tile.feature]
+      : items.length > 0
+        ? "Items on the ground"
+        : TERRAIN_LABELS[tile.terrain];
+
+    const nodes: HTMLElement[] = [
       this.header(heading, `Tile ${tile.x}, ${tile.y}`),
       this.summary([
         ["Ground", TERRAIN_LABELS[tile.terrain]],
         ["Standing on it", tile.feature ? FEATURE_LABELS[tile.feature] : "Nothing"],
-        ...(tile.feature === "tree" ? ([["Yield", `${LOGS_PER_TREE} logs`]] as [string, string][]) : []),
         ["Passable", this.sources.passable(tile.x, tile.y) ? "Yes" : "No"],
         ["Occupant", occupant?.name ?? "None"],
         ["Zone", zone ? ZONE_LABELS[zone.kind] : "None"],
       ]),
+    ];
+
+    if (items.length > 0) nodes.push(this.itemList(items));
+    nodes.push(
       this.note(
         tile.feature === "tree"
-          ? `Timber. Felling it leaves ${TERRAIN_LABELS[tile.terrain].toLowerCase()} behind.`
+          ? `Timber. Felling it drops what it was made of where it stood.`
           : TERRAIN_NOTES[tile.terrain]
-      ),
-    ];
+      )
+    );
+    return nodes;
+  }
+
+  private itemList(items: readonly ItemStack[]): HTMLElement {
+    const section = document.createElement("section");
+    section.className = "inspector__items";
+
+    const heading = document.createElement("h3");
+    heading.textContent = "On the ground";
+    section.append(heading);
+
+    for (const stack of items) {
+      const row = document.createElement("div");
+      row.className = "item";
+
+      const swatch = document.createElement("span");
+      swatch.className = `item__swatch item__swatch--${stack.item}`;
+
+      const name = document.createElement("span");
+      name.className = "item__name";
+      name.textContent = itemLabel(stack.item, stack.count);
+
+      const count = document.createElement("span");
+      count.className = "item__count";
+      count.textContent = String(stack.count);
+
+      row.append(swatch, name, count);
+      section.append(row);
+    }
+
+    const weight = document.createElement("p");
+    weight.className = "item__weight";
+    weight.textContent = `${totalCount(items)} items · ${totalWeight(items).toFixed(1)} weight`;
+    section.append(weight);
+
+    return section;
   }
 
   private zoneView(zone: Zone): HTMLElement[] {

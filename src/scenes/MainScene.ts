@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import type { Citizen } from "../world/Citizen";
 import type { TerrainKind, TileCoord } from "../world/Grid";
+import type { ItemId } from "../world/items";
 import { World } from "../world/World";
 import { rectFromDrag, type Zone } from "../world/Zone";
 import type { Selection, SelectionTarget } from "../ui/Selection";
@@ -21,6 +22,12 @@ const TREE_COLOR = 0x24522a;
 const CITIZEN_FILL = 0x9ab6c9;
 const CITIZEN_WORKING = 0xd8b45a;
 const WORK_COLOR = 0xe0c060;
+
+const ITEM_COLORS: Record<ItemId, number> = {
+  log: 0x8b6034,
+  branch: 0xa8853f,
+  leaf: 0x6f9c46,
+};
 const HIGHLIGHT_CITIZEN = 0x8fbc8f;
 const HIGHLIGHT_TILE = 0xc9c07a;
 const ZONE_FILL = 0xc9a227;
@@ -35,6 +42,7 @@ export class MainScene extends Phaser.Scene {
   private highlight!: Phaser.GameObjects.Rectangle;
   private zoneLayer!: Phaser.GameObjects.Graphics;
   private featureLayer!: Phaser.GameObjects.Graphics;
+  private groundLayer!: Phaser.GameObjects.Graphics;
   private workLayer!: Phaser.GameObjects.Graphics;
   private dragPreview!: Phaser.GameObjects.Graphics;
   private dragStart: TileCoord | null = null;
@@ -59,6 +67,7 @@ export class MainScene extends Phaser.Scene {
     // Zones sit above terrain but below citizens: they are ground markings, and
     // a villager standing in one must stay visible.
     this.zoneLayer = this.add.graphics();
+    this.groundLayer = this.add.graphics();
     this.workLayer = this.add.graphics();
     for (const citizen of this.world.citizens) this.drawCitizen(citizen);
     this.dragPreview = this.add.graphics();
@@ -80,6 +89,7 @@ export class MainScene extends Phaser.Scene {
     this.world.events.on("zone:added", () => this.drawZones());
     this.world.events.on("zone:removed", () => this.drawZones());
     this.world.events.on("tree:felled", () => this.drawFeatures());
+    this.world.events.on("ground:changed", () => this.drawGround());
     this.tools.events.on("changed", () => this.cancelDrag());
   }
 
@@ -242,6 +252,32 @@ export class MainScene extends Phaser.Scene {
         this.featureLayer.fillRect(tile.x * TILE + 4, tile.y * TILE + 4, TILE - 8, TILE - 8);
       }
     });
+  }
+
+  /**
+   * Piles on the ground, one dot per item kind. Drawn as a few small marks rather
+   * than a single blob so a glance tells you whether that tile is worth a trip:
+   * three logs and forty leaves must not look the same.
+   */
+  private drawGround(): void {
+    this.groundLayer.clear();
+    for (const tile of this.world.groundTiles()) {
+      const items = this.world.itemsAt(tile);
+      const originX = tile.x * TILE;
+      const originY = tile.y * TILE;
+
+      items.forEach((stack, index) => {
+        this.groundLayer.fillStyle(ITEM_COLORS[stack.item], 0.95);
+        // Small stacks get one dot, big ones get up to four — a rough sense of
+        // quantity without a number floating over the map.
+        const dots = Math.min(4, 1 + Math.floor(stack.count / 5));
+        for (let d = 0; d < dots; d++) {
+          const x = originX + 6 + index * 7 + (d % 2) * 3;
+          const y = originY + 18 - Math.floor(d / 2) * 4;
+          this.groundLayer.fillRect(x, y, 3, 3);
+        }
+      });
+    }
   }
 
   /** A ring that fills as the current chop completes — the work made visible. */
