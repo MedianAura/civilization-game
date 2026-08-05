@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { MainScene, TILE } from "./scenes/MainScene";
-import { CitizenPanel } from "./ui/CitizenPanel";
+import { InspectorPanel } from "./ui/InspectorPanel";
 import { Selection } from "./ui/Selection";
 import { World } from "./world/World";
 import "./ui/ui.css";
@@ -10,7 +10,11 @@ const selection = new Selection();
 
 const uiLayer = document.getElementById("ui-layer");
 if (!uiLayer) throw new Error("#ui-layer is missing from index.html");
-new CitizenPanel(uiLayer, selection, (id) => world.citizenById(id));
+new InspectorPanel(uiLayer, selection, {
+  citizen: (id) => world.citizenById(id),
+  tile: (x, y) => world.grid.at(x, y),
+  occupant: (x, y) => world.citizenAt({ x, y }),
+});
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,

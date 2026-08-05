@@ -1,44 +1,55 @@
 import { EventBus } from "../core/EventBus";
 
+/**
+ * What the player is looking at. A discriminated union rather than a citizen id,
+ * because "nothing here but grass" is a real answer the inspector has to give —
+ * and because everything the player will eventually click (a zone, a building,
+ * a stockpile) is another variant rather than another panel.
+ */
+export type SelectionTarget = { kind: "citizen"; id: string } | { kind: "tile"; x: number; y: number };
+
 export interface SelectionEvents extends Record<string, unknown> {
-  changed: { id: string | null; previous: string | null };
+  changed: { target: SelectionTarget | null; previous: SelectionTarget | null };
+}
+
+export function sameTarget(a: SelectionTarget | null, b: SelectionTarget | null): boolean {
+  if (a === null || b === null) return a === b;
+  if (a.kind !== b.kind) return false;
+  if (a.kind === "citizen" && b.kind === "citizen") return a.id === b.id;
+  if (a.kind === "tile" && b.kind === "tile") return a.x === b.x && a.y === b.y;
+  return false;
 }
 
 /**
- * Who the player is looking at. Deliberately *not* world state — selection is a
- * fact about the person holding the mouse, not about the colony, and a saved
- * game should never contain it.
+ * Deliberately *not* world state — selection is a fact about the person holding
+ * the mouse, not about the colony, and a saved game should never contain it.
  */
 export class Selection {
   readonly events = new EventBus<SelectionEvents>();
 
-  private current: string | null = null;
+  private current: SelectionTarget | null = null;
 
-  get selectedId(): string | null {
+  get target(): SelectionTarget | null {
     return this.current;
   }
 
-  isSelected(id: string): boolean {
-    return this.current === id;
-  }
-
-  select(id: string): void {
-    this.set(id);
+  select(target: SelectionTarget): void {
+    this.set(target);
   }
 
   clear(): void {
     this.set(null);
   }
 
-  /** Click the selected citizen again to deselect — the usual toggle. */
-  toggle(id: string): void {
-    this.set(this.current === id ? null : id);
+  /** Click the same thing again to deselect — the usual toggle. */
+  toggle(target: SelectionTarget): void {
+    this.set(sameTarget(this.current, target) ? null : target);
   }
 
-  private set(id: string | null): void {
-    if (this.current === id) return;
+  private set(target: SelectionTarget | null): void {
+    if (sameTarget(this.current, target)) return;
     const previous = this.current;
-    this.current = id;
-    this.events.emit("changed", { id, previous });
+    this.current = target;
+    this.events.emit("changed", { target, previous });
   }
 }
