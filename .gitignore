@@ -11,3 +11,7 @@ yarn.lock
 
 # playwright-mcp scratch output
 .playwright-mcp/
+
+# IDE
+.idea/
+.vscode/

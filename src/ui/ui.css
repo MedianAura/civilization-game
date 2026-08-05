@@ -1,0 +1,124 @@
+:root {
+  --panel-bg: #16181a;
+  --panel-border: #2c3033;
+  --ink: #d6dbd4;
+  --ink-dim: #7d8880;
+  --accent: #8fbc8f;
+}
+
+#ui-layer {
+  position: absolute;
+  inset: 0;
+  /* The overlay must not eat clicks meant for the canvas; individual panels
+     opt back in. */
+  pointer-events: none;
+  font-family: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, monospace;
+  color: var(--ink);
+}
+
+.citizen-panel {
+  pointer-events: auto;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 272px;
+  padding: 12px 14px 14px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 45%);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.citizen-panel[hidden] {
+  display: none;
+}
+
+.citizen-panel header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.citizen-panel h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.citizen-panel button[data-close] {
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.citizen-panel button[data-close]:hover {
+  color: var(--ink);
+}
+
+.citizen-panel__summary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 0 0 12px;
+}
+
+.citizen-panel__summary dt {
+  color: var(--ink-dim);
+}
+
+.citizen-panel__summary dd {
+  margin: 0;
+  text-align: right;
+}
+
+.citizen-panel h3 {
+  margin: 0 0 6px;
+  color: var(--ink-dim);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.skill {
+  display: grid;
+  /* Sized off "Lumberjacking", the longest label — it overflowed its meter at 84px. */
+  grid-template-columns: 94px 1fr 14px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.skill__value {
+  color: var(--ink-dim);
+  text-align: right;
+}
+
+.skill__meter {
+  position: relative;
+  height: 5px;
+  border-radius: 3px;
+  background: #24282a;
+}
+
+.skill__meter::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--level) * 100%);
+  min-width: 2px;
+  border-radius: 3px;
+  background: var(--accent);
+}

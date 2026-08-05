@@ -1,4 +1,4 @@
-export type TerrainKind = "grass" | "rock" | "berry";
+export type TerrainKind = "grass" | "rock" | "tree";
 
 export interface Tile {
   readonly x: number;
@@ -11,7 +11,7 @@ export interface TileCoord {
   readonly y: number;
 }
 
-const WALKABLE: ReadonlySet<TerrainKind> = new Set<TerrainKind>(["grass", "berry"]);
+const WALKABLE: ReadonlySet<TerrainKind> = new Set<TerrainKind>(["grass"]);
 
 /**
  * Throwaway terrain: rectangles today, a Tiled tilemap later. The point of this
@@ -51,24 +51,9 @@ export class Grid {
     for (const tile of this.tiles) visit(tile);
   }
 
-  /** Closest tile matching `predicate` by Manhattan distance, or undefined. */
-  nearestTile(from: TileCoord, predicate: (tile: Tile) => boolean): Tile | undefined {
-    let best: Tile | undefined;
-    let bestDistance = Infinity;
-    for (const tile of this.tiles) {
-      if (!predicate(tile)) continue;
-      const distance = Math.abs(tile.x - from.x) + Math.abs(tile.y - from.y);
-      if (distance < bestDistance) {
-        best = tile;
-        bestDistance = distance;
-      }
-    }
-    return best;
-  }
-
   randomWalkableTile(random: () => number): TileCoord {
-    // Rejection sampling. Fine while rock coverage is a few percent; if the map
-    // ever gets dense enough for this to spin, build the walkable index instead.
+    // Rejection sampling. Fine while obstacle coverage is a few percent; if the
+    // map ever gets dense enough for this to spin, build a walkable index.
     for (let attempt = 0; attempt < 200; attempt++) {
       const x = Math.floor(random() * this.width);
       const y = Math.floor(random() * this.height);
