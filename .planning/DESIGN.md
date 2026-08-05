@@ -216,3 +216,31 @@ forest floor has no shelves.
 a storage zone as the first building — with citizens hauling ground items into
 it. That last part is what finally requires movement, and it is the third time
 A\* will have been written.
+
+## 2026-08-04 — The item database splits before it grows
+
+**Decided:** `items.ts` becomes `items/`, and drop tables leave it entirely.
+
+The flat file held three things that grow at different rates: definitions (which
+explode), drop tables (which belong to whatever *drops* them, not to what falls),
+and stack helpers (which stay a handful of functions forever). Splitting cost
+nothing at three items and would have cost a day at fifty.
+
+```
+world/items/types.ts      shapes only — no item named, so categories can import it
+world/items/wood.ts       one file per material family
+world/items/registry.ts   ITEMS assembled from the families; ItemId derived
+world/items/stacks.ts     merge, take, count, weigh
+world/drops.ts            TREE_DROPS and friends, beside each other
+```
+
+**`ItemId` is derived, not declared**, via `as const satisfies ItemTable`. That is
+the load-bearing part: adding an item widens the union, and every
+`Record<ItemId, …>` in the codebase stops compiling until it accounts for it.
+Verified by adding a `plank` — it broke the render colours and both label tables,
+which is exactly the failure that a hand-written union would have let through
+silently.
+
+**A log does not know it came from a tree.** When stone comes from rock and
+berries from bushes, those tables want to be beside each other rather than
+scattered through the material files.
