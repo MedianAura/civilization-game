@@ -103,3 +103,50 @@ Alt-click selects the tile itself regardless of what stands on it.
 **Still open:** nothing assigns anyone to a zone yet. The panel says "Assigned:
 Nobody" and means it. That is the next real question — and it is the one where
 jobs, and eventually skills-as-multipliers, come back.
+
+## 2026-08-04 — Scale: one tile is one person
+
+**Decided:** a tile is roughly 1–1.5 m. The scale is set by the smallest actor,
+not the landscape: a villager occupies exactly one tile, so a 3 m tile would mean
+a person filling 9 m² who cannot share their square with anything.
+
+**Ground and what stands on it are separate.** `terrain` is what a tile *is* once
+cleared (grass, dirt, sand, rock, water); `feature` is what stands on it (a tree,
+later an ore node). The old model made "tree" a terrain, which meant the tile
+*was* the tree — felling it had nowhere to go. The note already said "passable
+once cleared" while the code had nothing to clear: the comment described the
+right model and the code had another one.
+
+**Richness is not scale.** "A tile should hold more than one thing" does not
+require bigger tiles — a tree yields 5 logs from a 1 m tile. Resource nodes are
+features, not biomes: a biome says "this is forest", a node says "there is iron
+here", and they live on different layers.
+
+## 2026-08-04 — A region is 128×96, generated from coherent noise
+
+**Decided:** 128 × 96 tiles (~12 300), generated from two noise fields —
+elevation carves mountains and lake basins, moisture decides forest against dry
+earth.
+
+**Why the old map could not work:** it rolled each tile independently
+(`roll < 0.05 → rock`). That cannot produce a forest, only scattered trees that
+occasionally land beside each other. Enlarging it would have produced a larger
+field of the same static. Coherence was the problem, size was second.
+
+**Regions are plural by construction.** Size and seed are arguments, generation
+is deterministic, and nothing assumes there is only one. A world map holding
+several of these later means holding several `World` instances, not reworking
+one. `?seed=123` reproduces a region exactly — terrain bugs are unreportable
+otherwise.
+
+**The camera was the hidden dependency.** While the board fitted on screen,
+"seeing" was free. It is not any more: right-drag pans (the left drag already
+means "paint a zone"), the wheel zooms toward the cursor, WASD and arrows pan.
+Zooming out stops where the region still fills the window — `setBounds(…, true)`
+centres only once, at the moment it is called, so it could not keep the world off
+the void.
+
+**Rivers are parked.** Forest, mountain, lake and dry earth fall straight out of
+a threshold on two channels. A river follows a slope and needs a flow model, and
+a bad one is obvious — it runs uphill, it ends in nothing — while an approximate
+forest just looks like a forest.

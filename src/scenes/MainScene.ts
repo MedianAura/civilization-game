@@ -1,33 +1,41 @@
 import Phaser from "phaser";
 import type { Citizen } from "../world/Citizen";
-import type { TileCoord } from "../world/Grid";
+import type { TerrainKind, TileCoord } from "../world/Grid";
 import { World } from "../world/World";
 import { rectFromDrag, type Zone } from "../world/Zone";
 import type { Selection, SelectionTarget } from "../ui/Selection";
 import type { ToolState } from "../ui/Tool";
+import { CameraController } from "./CameraController";
 
 export const TILE = 28;
 
-const TERRAIN_COLORS: Record<string, number> = {
-  grass: 0x2f3d2b,
-  rock: 0x3f3f45,
-  tree: 0x27502c,
+const TERRAIN_COLORS: Record<TerrainKind, number> = {
+  grass: 0x33422e,
+  dirt: 0x4a4133,
+  sand: 0x6b6042,
+  rock: 0x45454c,
+  water: 0x25384a,
 };
 
+const TREE_COLOR = 0x24522a;
 const CITIZEN_FILL = 0x9ab6c9;
 const HIGHLIGHT_CITIZEN = 0x8fbc8f;
 const HIGHLIGHT_TILE = 0xc9c07a;
 const ZONE_FILL = 0xc9a227;
+const LABEL_ZOOM = 0.7;
 
 export class MainScene extends Phaser.Scene {
   private world!: World;
   private selection!: Selection;
   private tools!: ToolState;
+  private camera!: CameraController;
 
   private highlight!: Phaser.GameObjects.Rectangle;
   private zoneLayer!: Phaser.GameObjects.Graphics;
   private dragPreview!: Phaser.GameObjects.Graphics;
   private dragStart: TileCoord | null = null;
+  private readonly labels: Phaser.GameObjects.Text[] = [];
+  private labelsVisible = true;
 
   constructor() {
     super("MainScene");
@@ -40,6 +48,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   create(): void {
+    const { grid } = this.world;
     this.drawTerrain();
 
     // Zones sit above terrain but below citizens: they are ground markings, and
@@ -48,12 +57,14 @@ export class MainScene extends Phaser.Scene {
     for (const citizen of this.world.citizens) this.drawCitizen(citizen);
     this.dragPreview = this.add.graphics();
 
-    // A single reusable marker instead of one halo per citizen: everything the
-    // player can select occupies a rectangle, so there is only one to move.
     this.highlight = this.add
       .rectangle(0, 0, TILE + 2, TILE + 2)
       .setStrokeStyle(2, HIGHLIGHT_CITIZEN)
       .setVisible(false);
+
+    this.camera = new CameraController(this, grid.width * TILE, grid.height * TILE);
+    const first = this.world.citizens[0];
+    if (first) this.camera.centreOn((first.tile.x + 0.5) * TILE, (first.tile.y + 0.5) * TILE);
 
     this.input.on(Phaser.Input.Events.POINTER_DOWN, (p: Phaser.Input.Pointer) => this.onPointerDown(p));
     this.input.on(Phaser.Input.Events.POINTER_MOVE, (p: Phaser.Input.Pointer) => this.onPointerMove(p));
@@ -68,6 +79,7 @@ export class MainScene extends Phaser.Scene {
   // -- input ---------------------------------------------------------------
 
   private onPointerDown(pointer: Phaser.Input.Pointer): void {
+    if (!pointer.leftButtonDown()) return;
     if (this.tools.current.kind !== "zone") return;
     const tile = this.tileUnder(pointer);
     if (tile) this.dragStart = tile;
@@ -80,8 +92,10 @@ export class MainScene extends Phaser.Scene {
   }
 
   private onPointerUp(pointer: Phaser.Input.Pointer): void {
-    const tool = this.tools.current;
+    // The right button belongs to the camera; it must never select or paint.
+    if (pointer.button !== 0) return;
 
+    const tool = this.tools.current;
     if (this.dragStart && tool.kind === "zone") {
       const end = this.tileUnder(pointer) ?? this.dragStart;
       const zone = this.world.addZone(tool.zone, rectFromDrag(this.dragStart, end));
@@ -96,10 +110,6 @@ export class MainScene extends Phaser.Scene {
   }
 
   private onInspectClick(pointer: Phaser.Input.Pointer): void {
-    // Phaser listens on the window and clamps the pointer onto the canvas, so a
-    // click in the letterboxing beside a FIT-scaled board arrives as a click on
-    // the nearest edge tile. A bounds check on worldX/worldY can never see it —
-    // by then the coordinates have already been rounded onto the board.
     const tile = this.tileUnder(pointer);
     if (!tile) {
       this.selection.clear();
@@ -127,6 +137,10 @@ export class MainScene extends Phaser.Scene {
   }
 
   private tileUnder(pointer: Phaser.Input.Pointer): TileCoord | null {
+    // Phaser listens on the window and clamps the pointer onto the canvas, so a
+    // click in the letterboxing beside a FIT-scaled board arrives as a click on
+    // the nearest edge tile. A bounds check on worldX/worldY can never see it —
+    // by then the coordinates have already been rounded onto the board.
     if (pointer.event.target !== this.game.canvas) return null;
     const x = Math.floor(pointer.worldX / TILE);
     const y = Math.floor(pointer.worldY / TILE);
@@ -195,12 +209,20 @@ export class MainScene extends Phaser.Scene {
   }
 
   private drawTerrain(): void {
-    // One Graphics object rather than 700 Rectangles: a single draw call, and the
-    // thing a Tiled TilemapLayer will replace without the simulation noticing.
-    const graphics = this.add.graphics();
+    // Two Graphics objects for ~12k tiles rather than 12k game objects: ground in
+    // one batch, features in another. A Tiled TilemapLayer replaces both later
+    // without the simulation noticing.
+    const ground = this.add.graphics();
+    const features = this.add.graphics();
+
     this.world.grid.forEach((tile) => {
-      graphics.fillStyle(TERRAIN_COLORS[tile.terrain] ?? 0xff00ff, 1);
-      graphics.fillRect(tile.x * TILE, tile.y * TILE, TILE - 1, TILE - 1);
+      ground.fillStyle(TERRAIN_COLORS[tile.terrain], 1);
+      ground.fillRect(tile.x * TILE, tile.y * TILE, TILE, TILE);
+
+      if (tile.feature === "tree") {
+        features.fillStyle(TREE_COLOR, 1);
+        features.fillRect(tile.x * TILE + 4, tile.y * TILE + 4, TILE - 8, TILE - 8);
+      }
     });
   }
 
@@ -209,16 +231,28 @@ export class MainScene extends Phaser.Scene {
     const y = (citizen.tile.y + 0.5) * TILE;
 
     this.add.rectangle(x, y, TILE - 12, TILE - 12, CITIZEN_FILL);
-    this.add
-      .text(x, y + TILE / 2 - 3, citizen.name, {
-        fontFamily: "monospace",
-        fontSize: "9px",
-        color: "#cfcfcf",
-      })
-      .setOrigin(0.5, 0);
+    this.labels.push(
+      this.add
+        .text(x, y + TILE / 2 - 3, citizen.name, {
+          fontFamily: "monospace",
+          fontSize: "9px",
+          color: "#cfcfcf",
+        })
+        .setOrigin(0.5, 0)
+    );
+  }
+
+  /** Below this zoom a name is a grey smear that overlaps its neighbours. */
+  private syncLabelVisibility(): void {
+    const visible = this.cameras.main.zoom >= LABEL_ZOOM;
+    if (visible === this.labelsVisible) return;
+    this.labelsVisible = visible;
+    for (const label of this.labels) label.setVisible(visible);
   }
 
   update(_time: number, delta: number): void {
+    this.camera.update(delta);
+    this.syncLabelVisibility();
     this.world.update(delta);
   }
 }

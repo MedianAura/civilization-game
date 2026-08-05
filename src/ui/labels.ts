@@ -1,4 +1,4 @@
-import type { TerrainKind } from "../world/Grid";
+import type { TerrainKind, TileFeature } from "../world/Grid";
 import type { SkillName } from "../world/Skills";
 import type { ZoneKind } from "../world/Zone";
 
@@ -17,15 +17,23 @@ export const SKILL_LABELS: Record<SkillName, string> = {
 
 export const TERRAIN_LABELS: Record<TerrainKind, string> = {
   grass: "Grass",
+  dirt: "Dry earth",
+  sand: "Sand",
   rock: "Rock",
-  tree: "Forest",
+  water: "Water",
 };
 
-/** What each kind of tile is worth looking at for. Honest about the empty ones. */
+/** What each kind of ground is worth looking at for. Honest about the empty ones. */
 export const TERRAIN_NOTES: Record<TerrainKind, string> = {
   grass: "Open ground. Buildable.",
+  dirt: "Too dry for trees. Buildable.",
+  sand: "Shoreline. Buildable, poor soil.",
   rock: "Impassable. Stone here.",
-  tree: "Timber here. Passable once cleared.",
+  water: "Impassable.",
+};
+
+export const FEATURE_LABELS: Record<NonNullable<TileFeature>, string> = {
+  tree: "Tree",
 };
 
 export const ZONE_LABELS: Record<ZoneKind, string> = {

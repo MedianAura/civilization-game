@@ -1,14 +1,15 @@
 import type { Citizen } from "../world/Citizen";
-import type { Tile } from "../world/Grid";
+import { LOGS_PER_TREE, type Tile } from "../world/Grid";
 import { bestSkill, MAX_SKILL_LEVEL, SKILLS, worstSkill } from "../world/Skills";
 import type { Zone } from "../world/Zone";
-import { SKILL_LABELS, TERRAIN_LABELS, TERRAIN_NOTES, ZONE_LABELS } from "./labels";
+import { FEATURE_LABELS, SKILL_LABELS, TERRAIN_LABELS, TERRAIN_NOTES, ZONE_LABELS } from "./labels";
 import type { Selection, SelectionTarget } from "./Selection";
 
 export interface InspectorSources {
   citizen: (id: string) => Citizen | undefined;
   tile: (x: number, y: number) => Tile | undefined;
   occupant: (x: number, y: number) => Citizen | undefined;
+  passable: (x: number, y: number) => boolean;
   zone: (id: string) => Zone | undefined;
   zoneAt: (x: number, y: number) => Zone | undefined;
   usableTiles: (zone: Zone) => number;
@@ -99,16 +100,26 @@ export class InspectorPanel {
   private tileView(tile: Tile): HTMLElement[] {
     const occupant = this.sources.occupant(tile.x, tile.y);
     const zone = this.sources.zoneAt(tile.x, tile.y);
+
+    // The heading names what is *there*; the rows name the ground under it. A
+    // tree on grass is two facts, and the old model could only hold one.
+    const heading = tile.feature ? FEATURE_LABELS[tile.feature] : TERRAIN_LABELS[tile.terrain];
+
     return [
-      this.header(TERRAIN_LABELS[tile.terrain], `Tile ${tile.x}, ${tile.y}`),
+      this.header(heading, `Tile ${tile.x}, ${tile.y}`),
       this.summary([
-        ["Terrain", TERRAIN_LABELS[tile.terrain]],
-        ["Passable", tile.terrain === "rock" ? "No" : "Yes"],
+        ["Ground", TERRAIN_LABELS[tile.terrain]],
+        ["Standing on it", tile.feature ? FEATURE_LABELS[tile.feature] : "Nothing"],
+        ...(tile.feature === "tree" ? ([["Yield", `${LOGS_PER_TREE} logs`]] as [string, string][]) : []),
+        ["Passable", this.sources.passable(tile.x, tile.y) ? "Yes" : "No"],
         ["Occupant", occupant?.name ?? "None"],
         ["Zone", zone ? ZONE_LABELS[zone.kind] : "None"],
-        ["Building", "None"],
       ]),
-      this.note(TERRAIN_NOTES[tile.terrain]),
+      this.note(
+        tile.feature === "tree"
+          ? `Timber. Felling it leaves ${TERRAIN_LABELS[tile.terrain].toLowerCase()} behind.`
+          : TERRAIN_NOTES[tile.terrain]
+      ),
     ];
   }
 
