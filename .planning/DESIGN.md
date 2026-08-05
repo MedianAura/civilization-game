@@ -74,3 +74,32 @@ it is what gives the panel something real to show. Skills come first now.
 **Also:** the panel must be an HTML/CSS DOM overlay per `CLAUDE.md`, not Phaser
 text objects. The first HUD violated that convention; the panel is what forces
 the real UI layer to exist.
+
+## 2026-08-04 — Zones are world state; selection is not
+
+**Decided:** a zone is a standing instruction attached to an area ("gather wood
+here"). It belongs to the colony, survives the click that created it, and would
+appear in a save file. Selection does not.
+
+The rectangle is stored whole, including tiles the job cannot use. A woodcutting
+zone drawn across bare grass is not an error — it has nothing to work on yet, and
+it will if something grows there.
+
+**Overlap:** zones may overlap, and the most recently drawn one wins a shared
+tile. Refusing an overlap would mean explaining the refusal mid-drag; "the last
+thing you drew is what applies" is what a player expects from a paint tool.
+
+**Modal input, and the cost of it.** A zone tool turns drags into areas instead
+of selections. That is a real hazard — a player who forgets the mode paints when
+they meant to look — so the toolbar states the active mode in words and Escape
+always returns to inspecting.
+
+**Click precedence: villager > zone > tile, with Alt to drill down.** The
+precedence alone made the layers underneath unreachable: the tile panel's own
+"Zone" row could only ever read "None", because reaching a tile inside a zone was
+impossible. A row that can only display one value is a lie with extra steps.
+Alt-click selects the tile itself regardless of what stands on it.
+
+**Still open:** nothing assigns anyone to a zone yet. The panel says "Assigned:
+Nobody" and means it. That is the next real question — and it is the one where
+jobs, and eventually skills-as-multipliers, come back.

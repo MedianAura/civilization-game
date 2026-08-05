@@ -6,7 +6,8 @@ import { EventBus } from "../core/EventBus";
  * and because everything the player will eventually click (a zone, a building,
  * a stockpile) is another variant rather than another panel.
  */
-export type SelectionTarget = { kind: "citizen"; id: string } | { kind: "tile"; x: number; y: number };
+export type SelectionTarget =
+  { kind: "citizen"; id: string } | { kind: "tile"; x: number; y: number } | { kind: "zone"; id: string };
 
 export interface SelectionEvents extends Record<string, unknown> {
   changed: { target: SelectionTarget | null; previous: SelectionTarget | null };
@@ -15,8 +16,8 @@ export interface SelectionEvents extends Record<string, unknown> {
 export function sameTarget(a: SelectionTarget | null, b: SelectionTarget | null): boolean {
   if (a === null || b === null) return a === b;
   if (a.kind !== b.kind) return false;
-  if (a.kind === "citizen" && b.kind === "citizen") return a.id === b.id;
   if (a.kind === "tile" && b.kind === "tile") return a.x === b.x && a.y === b.y;
+  if (b.kind !== "tile") return a.kind !== "tile" && a.id === b.id;
   return false;
 }
 

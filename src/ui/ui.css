@@ -139,3 +139,78 @@
   border-radius: 3px;
   background: var(--accent);
 }
+
+.inspector__danger {
+  width: 100%;
+  margin-top: 10px;
+  padding: 5px 8px;
+  border: 1px solid #5a3336;
+  border-radius: 3px;
+  background: none;
+  color: #c98a8a;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.inspector__danger:hover {
+  border-color: #7d4247;
+  background: #2a1c1e;
+  color: #e0a0a0;
+}
+
+.toolbar {
+  pointer-events: auto;
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 45%);
+  font-size: 12px;
+}
+
+.toolbar button {
+  padding: 5px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 3px;
+  background: #1d2022;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.toolbar button:hover {
+  border-color: #3d4348;
+}
+
+.toolbar button.is-active {
+  border-color: var(--accent);
+  background: #24301f;
+  color: var(--accent);
+}
+
+.toolbar__hint {
+  margin: 0;
+  padding-left: 4px;
+  color: var(--ink-dim);
+  font-size: 11px;
+}
+
+/* Keep the focus ring for keyboard users, drop it after a mouse click — the
+   default sticks on the button and reads as a second "active" state next to
+   .is-active. */
+.toolbar button:focus {
+  outline: none;
+}
+
+.toolbar button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

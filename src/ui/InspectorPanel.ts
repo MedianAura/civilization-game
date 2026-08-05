@@ -1,41 +1,26 @@
 import type { Citizen } from "../world/Citizen";
-import type { Tile, TerrainKind } from "../world/Grid";
-import { bestSkill, MAX_SKILL_LEVEL, SKILLS, worstSkill, type SkillName } from "../world/Skills";
+import type { Tile } from "../world/Grid";
+import { bestSkill, MAX_SKILL_LEVEL, SKILLS, worstSkill } from "../world/Skills";
+import type { Zone } from "../world/Zone";
+import { SKILL_LABELS, TERRAIN_LABELS, TERRAIN_NOTES, ZONE_LABELS } from "./labels";
 import type { Selection, SelectionTarget } from "./Selection";
-
-const SKILL_LABELS: Record<SkillName, string> = {
-  lumberjacking: "Lumberjacking",
-  mining: "Mining",
-  building: "Building",
-  farming: "Farming",
-  cooking: "Cooking",
-};
-
-const TERRAIN_LABELS: Record<TerrainKind, string> = {
-  grass: "Grass",
-  rock: "Rock",
-  tree: "Forest",
-};
-
-/** What each kind of tile is worth looking at for. Honest about the empty ones. */
-const TERRAIN_NOTES: Record<TerrainKind, string> = {
-  grass: "Open ground. Buildable.",
-  rock: "Impassable. Stone here.",
-  tree: "Timber here. Passable once cleared.",
-};
 
 export interface InspectorSources {
   citizen: (id: string) => Citizen | undefined;
   tile: (x: number, y: number) => Tile | undefined;
   occupant: (x: number, y: number) => Citizen | undefined;
+  zone: (id: string) => Zone | undefined;
+  zoneAt: (x: number, y: number) => Zone | undefined;
+  usableTiles: (zone: Zone) => number;
+  removeZone: (id: string) => void;
 }
 
 /**
  * The inspector. A DOM overlay rather than Phaser text objects, per CLAUDE.md.
  *
  * One panel, one job: say what the player just clicked. It dispatches on the
- * selection's kind, so a zone or a building later becomes another branch here
- * rather than another floating window.
+ * selection's kind, so a building later becomes another branch here rather than
+ * another floating window.
  */
 export class InspectorPanel {
   private readonly root: HTMLElement;
@@ -51,10 +36,24 @@ export class InspectorPanel {
     mount.appendChild(this.root);
 
     this.root.addEventListener("click", (event) => {
-      if ((event.target as HTMLElement).closest("[data-close]")) this.selection.clear();
+      const el = event.target as HTMLElement;
+      if (el.closest("[data-close]")) {
+        this.selection.clear();
+        return;
+      }
+      const remove = el.closest<HTMLElement>("[data-remove-zone]");
+      if (remove?.dataset.removeZone) {
+        this.sources.removeZone(remove.dataset.removeZone);
+        this.selection.clear();
+      }
     });
 
     this.selection.events.on("changed", ({ target }) => this.render(target));
+  }
+
+  /** Re-render in place — used when the world changes under a live selection. */
+  refresh(): void {
+    this.render(this.selection.target);
   }
 
   private render(target: SelectionTarget | null): void {
@@ -72,6 +71,10 @@ export class InspectorPanel {
     if (target.kind === "citizen") {
       const citizen = this.sources.citizen(target.id);
       return citizen ? this.citizenView(citizen) : null;
+    }
+    if (target.kind === "zone") {
+      const zone = this.sources.zone(target.id);
+      return zone ? this.zoneView(zone) : null;
     }
     const tile = this.sources.tile(target.x, target.y);
     return tile ? this.tileView(tile) : null;
@@ -95,17 +98,46 @@ export class InspectorPanel {
 
   private tileView(tile: Tile): HTMLElement[] {
     const occupant = this.sources.occupant(tile.x, tile.y);
+    const zone = this.sources.zoneAt(tile.x, tile.y);
     return [
       this.header(TERRAIN_LABELS[tile.terrain], `Tile ${tile.x}, ${tile.y}`),
       this.summary([
         ["Terrain", TERRAIN_LABELS[tile.terrain]],
         ["Passable", tile.terrain === "rock" ? "No" : "Yes"],
         ["Occupant", occupant?.name ?? "None"],
-        ["Zone", "None"],
+        ["Zone", zone ? ZONE_LABELS[zone.kind] : "None"],
         ["Building", "None"],
       ]),
       this.note(TERRAIN_NOTES[tile.terrain]),
     ];
+  }
+
+  private zoneView(zone: Zone): HTMLElement[] {
+    const usable = this.sources.usableTiles(zone);
+    const nodes: HTMLElement[] = [
+      this.header(ZONE_LABELS[zone.kind], "Zone"),
+      this.summary([
+        ["Area", `${zone.rect.width} × ${zone.rect.height}`],
+        ["Tiles", String(zone.tileCount)],
+        ["Trees inside", String(usable)],
+        ["Assigned", "Nobody"],
+        ["Origin", `${zone.rect.x}, ${zone.rect.y}`],
+      ]),
+      this.note(
+        usable === 0
+          ? "Nothing to cut here yet. The zone stays; it will apply if trees grow inside it."
+          : `${usable} tile${usable === 1 ? "" : "s"} of timber waiting. Nobody is assigned to work it.`
+      ),
+    ];
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "inspector__danger";
+    remove.dataset.removeZone = zone.id;
+    remove.textContent = "Remove zone";
+    nodes.push(remove);
+
+    return nodes;
   }
 
   // -- pieces --------------------------------------------------------------
